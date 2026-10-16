@@ -1,16 +1,62 @@
-## Hi there 👋
+<h1 align="center">Matheus Amaral</h1>
 
-<!--
-**mateto2/mateto2** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&amp;weight=600&amp;size=22&amp;pause=1200&amp;color=00FF87&amp;center=true&amp;vCenter=true&amp;width=650&amp;lines=Estudante+de+Ci%C3%AAncia+da+Computa%C3%A7%C3%A3o;Desenvolvimento+web+%26+an%C3%A1lise+de+dados;Aprendendo+na+pr%C3%A1tica%2C+um+projeto+por+vez" alt="Estudante de Ciência da Computação, explorando desenvolvimento web e análise de dados" />
+</p>
 
-Here are some ideas to get you started:
+<p align="center">
+  <a href="https://github.com/mateto2?tab=repositories"><img src="https://img.shields.io/badge/Meus_projetos-0D1117?style=for-the-badge&amp;logo=github&amp;logoColor=00FF87" alt="Meus projetos" /></a>
+  <img src="https://komarev.com/ghpvc/?username=mateto2&amp;style=for-the-badge&amp;color=00c853&amp;label=VISITAS" alt="Contador de visitas ao perfil" />
+</p>
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+👋 Sobre mim
+Sou estudante de Ciência da Computação, de João Pessoa – PB. Uso este espaço para compartilhar projetos, aplicar o que estudo e acompanhar minha evolução.
+- 💻 Explorando desenvolvimento web e construção de interfaces.
+- 📊 Trabalhando com análise de dados, dashboards e Business Intelligence.
+- 🐍 Estudando Python e sua aplicação na análise de dados.
+- 🧠 Aprofundando meus estudos em algoritmos, complexidade e computabilidade.
+🌟 Projeto principal — SAVETT
+<p align="center">
+  <a href="https://github.com/mateto2/SAVETT">
+    <img src="https://img.shields.io/badge/SAVETT-PROJETO_EM_DESTAQUE-00C853?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="SAVETT — projeto em destaque" />
+  </a>
+</p>
+
+O SAVETT é o principal destaque do meu portfólio.
+Explorar o repositório do SAVETT →
+<!-- Adicionar aqui a descrição e as funcionalidades confirmadas do SAVETT. -->
+
+🚀 Outros projetos
+DriveProfit
+<!-- Adicionar descrição e URL pública confirmadas do DriveProfit. -->
+
+Dora
+Desenvolvimento de páginas web para Dora.
+<!-- Adicionar a URL pública confirmada da página de Dora. -->
+
+Pure Path
+Desenvolvimento de páginas web para a Pure Path, marca de streetwear cristão, conectando identidade visual e presença digital.
+<!-- Adicionar a URL pública confirmada da página da Pure Path. -->
+
+📊 Dashboard Netflix
+Análise do catálogo da Netflix com Excel, Power Query e tabelas dinâmicas, organizada em um dashboard para explorar o intervalo entre lançamento e entrada no catálogo, a duração média dos filmes e a proporção de séries com uma ou mais temporadas.
+🛠️ Tecnologias e ferramentas
+Desenvolvimento web · em aprendizado e projetos
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=ts,react,tailwind,vite&amp;theme=dark" alt="TypeScript, React, Tailwind CSS e Vite" />
+</p>
+
+Dados e análise
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=python&amp;theme=dark" alt="Python" /><br />
+  <img src="https://img.shields.io/badge/Excel-217346?style=for-the-badge" alt="Microsoft Excel" />
+  <img src="https://img.shields.io/badge/Power_Query-185C37?style=for-the-badge" alt="Power Query" />
+  <img src="https://img.shields.io/badge/Pandas-150458?style=for-the-badge&amp;logo=pandas&amp;logoColor=white" alt="Pandas" />
+</p>
+
+📈 Atividade no GitHub
+<p align="center">
+  <a href="https://github.com/mateto2">
+    <img src="https://streak-stats.demolab.com?user=mateto2&amp;hide_border=true&amp;background=0D1117&amp;ring=00FF87&amp;fire=00FF87&amp;currStreakLabel=00FF87&amp;stroke=00FF87&amp;sideNums=C9D1D9&amp;sideLabels=C9D1D9&amp;currStreakNum=C9D1D9&amp;dates=8B949E" alt="Estatísticas de contribuições de Matheus no GitHub" />
+  </a>
+</p>
