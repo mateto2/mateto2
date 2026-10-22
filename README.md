@@ -14,26 +14,6 @@
   </a>
 </p>
 
-O SAVETT é o principal destaque do meu portfólio.
-Explorar o repositório do SAVETT →
-<!-- Adicionar aqui a descrição e as funcionalidades confirmadas do SAVETT. -->
-
-🚀 Outros projetos
-DriveProfit
-<!-- Adicionar descrição e URL pública confirmadas do DriveProfit. -->
-
-Dora
-Desenvolvimento de páginas web para Dora.
-<!-- Adicionar a URL pública confirmada da página de Dora. -->
-
-Pure Path
-Desenvolvimento de páginas web para a Pure Path, marca de streetwear cristão, conectando identidade visual e presença digital.
-<!-- Adicionar a URL pública confirmada da página da Pure Path. -->
-
-📊 Dashboard Netflix
-Análise do catálogo da Netflix com Excel, Power Query e tabelas dinâmicas, organizada em um dashboard para explorar o intervalo entre lançamento e entrada no catálogo, a duração média dos filmes e a proporção de séries com uma ou mais temporadas.
-🛠️ Tecnologias e ferramentas
-Desenvolvimento web · em aprendizado e projetos
 <p align="center">
   <img src="https://skillicons.dev/icons?i=ts,react,tailwind,vite&amp;theme=dark" alt="TypeScript, React, Tailwind CSS e Vite" />
 </p>
