@@ -8,14 +8,6 @@
   <a href="https://github.com/mateto2?tab=repositories"><img src="https://img.shields.io/badge/Meus_projetos-0D1117?style=for-the-badge&amp;logo=github&amp;logoColor=00FF87" alt="Meus projetos" /></a>
   <img src="https://komarev.com/ghpvc/?username=mateto2&amp;style=for-the-badge&amp;color=00c853&amp;label=VISITAS" alt="Contador de visitas ao perfil" />
 </p>
-
-👋 Sobre mim
-Sou estudante de Ciência da Computação, de João Pessoa – PB. Uso este espaço para compartilhar projetos, aplicar o que estudo e acompanhar minha evolução.
-- 💻 Explorando desenvolvimento web e construção de interfaces.
-- 📊 Trabalhando com análise de dados, dashboards e Business Intelligence.
-- 🐍 Estudando Python e sua aplicação na análise de dados.
-- 🧠 Aprofundando meus estudos em algoritmos, complexidade e computabilidade.
-🌟 Projeto principal — SAVETT
 <p align="center">
   <a href="https://github.com/mateto2/SAVETT">
     <img src="https://img.shields.io/badge/SAVETT-PROJETO_EM_DESTAQUE-00C853?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="SAVETT — projeto em destaque" />
