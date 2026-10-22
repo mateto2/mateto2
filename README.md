@@ -6,6 +6,13 @@
 
 <p align="center">
   <a href="https://github.com/mateto2?tab=repositories"><img src="https://img.shields.io/badge/Meus_projetos-0D1117?style=for-the-badge&amp;logo=github&amp;logoColor=00FF87" alt="Meus projetos" /></a>
+  <p align="center">
+  <a href="mailto:ferreiraamaralmatheus@gmail.com">
+    <img src="https://img.shields.io/badge/Gmail-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Gmail">
+  </a>
+  <a href="https://www.linkedin.com/in/matheusfamaral/" target="_blank">
+    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn">
+  </a>
   <img src="https://komarev.com/ghpvc/?username=mateto2&amp;style=for-the-badge&amp;color=00c853&amp;label=VISITAS" alt="Contador de visitas ao perfil" />
 </p>
 <p align="center">
