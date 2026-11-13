@@ -169,7 +169,50 @@ def counter(x, y, value, cls, style, begin=0.6, frames=18, step=0.04):
 
 
 # ---------- cards ----------
+def portrait_group(x, y, box_w, box_h, start=0.3):
+    """Retrato ASCII (data/portrait.txt); cada linha aparece 18 ms depois da anterior."""
+    cpath, path = ROOT / "data" / "portrait.json", ROOT / "data" / "portrait.txt"
+    if cpath.exists():  # versão colorida: lista de trechos [texto, cor] por linha
+        runs = json.loads(cpath.read_text(encoding="utf-8"))["lines"]
+    elif path.exists():
+        runs = [[[l, None]] for l in path.read_text(encoding="utf-8").splitlines()]
+    else:
+        return None
+    if not runs:
+        return None
+    lines = ["".join(t for t, _ in r) for r in runs]
+    cols = max(len(l) for l in lines)
+    fs = min(box_w / (cols * 0.6), box_h / len(lines))  # mono: largura ≈ 0.6em
+    x += (box_w - cols * 0.6 * fs) / 2  # centraliza na caixa
+    y += (box_h - len(lines) * fs) / 2
+    cw = 0.6 * fs
+    out = [f'<g class="mono" font-size="{fs:.2f}" fill="{INK}" style="white-space:pre" xml:space="preserve">']
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        anim = "" if STATIC else f' style="animation:fade .25s ease-out {start + i*0.018:.3f}s both"'
+        out.append(f'<g{anim}>')
+        col = 0
+        for text, color in runs[i]:
+            if text.strip():
+                lead = len(text) - len(text.lstrip())
+                body = text.strip()
+                fill = f' fill="{color}"' if color else ""
+                # cada trecho é posicionado pela coluna, então não depende da fonte disponível
+                out.append(
+                    f'<text x="{x + (col+lead)*cw:.1f}" y="{y + (i+1)*fs:.1f}" textLength="{len(body)*cw:.1f}" '
+                    f'lengthAdjust="spacingAndGlyphs"{fill}>{esc(body)}</text>'
+                )
+            col += len(text)
+        out.append("</g>")
+    out.append("</g>")
+    return "".join(out)
+
+
 def hero(s):
+    portrait = portrait_group(612, 22, 240, 296)
+    if portrait:
+        return hero_with_portrait(s, portrait)
     w, h = 880, 300
     css = """
     .l1{animation:rise .8s ease-out .1s both}.l2{animation:rise .8s ease-out .35s both}
@@ -194,6 +237,33 @@ def hero(s):
         + f'<g class="l3"><circle cx="760" cy="80" r="26" fill="{BLUE}" opacity=".9"/>'
         + f'<circle cx="800" cy="80" r="26" fill="{YELLOW}" opacity=".9"/>'
         + f'<circle cx="780" cy="112" r="26" fill="{RED}" opacity=".85"/></g>'
+    )
+    return svg(w, h, body, css, "Matheus Amaral — estudante de Ciência da Computação")
+
+
+def hero_with_portrait(s, portrait):
+    w, h = 880, 340
+    css = """
+    .l1{animation:rise .8s ease-out .1s both}.l2{animation:rise .8s ease-out .35s both}
+    .l3{animation:rise .8s ease-out .6s both}.l4{animation:fade 1s ease-out 1s both}
+    .dot{animation:pulse 1.8s ease-out 1.2s infinite;transform-box:fill-box;transform-origin:center}
+    .ar{animation:nudge 3s ease-in-out 2s infinite}
+    """
+    body = (
+        frame(w, h)
+        + f"<defs>{shine_gradient('nm', INK, GREEN, 5, 1.6)}</defs>"
+        + f'<rect x="596" y="14" width="270" height="312" rx="12" '
+        f'fill="{INK if (ROOT / "data" / "portrait.json").exists() else PAPER_2}"/>'
+        + portrait
+        + f'<text x="56" y="78" class="mono muted l1" font-size="14" letter-spacing="2">OLÁ, EU SOU</text>'
+        + f'<text x="52" y="152" class="serif l2" font-size="76" fill="{INK}">Matheus</text>'
+        + f'<text x="52" y="222" class="serif l2" font-size="76" font-style="italic" fill="url(#nm)">Amaral</text>'
+        + f'<text class="sans l3" font-size="18" fill="{INK}"><tspan x="56" y="260">Estudante de Ciência da Computação —</tspan>'
+        + f'<tspan x="56" y="284">desenvolvimento web &amp; análise de dados.</tspan></text>'
+        + '<g class="l4">'
+        + f'<circle cx="62" cy="310" r="5" fill="{GREEN}"/><circle class="dot" cx="62" cy="310" r="5" fill="{GREEN}"/>'
+        + f'<text x="78" y="315" class="mono" font-size="13" fill="{MUTED}">{s["total"]} contribuições no último ano <tspan class="ar">→</tspan></text>'
+        + "</g>"
     )
     return svg(w, h, body, css, "Matheus Amaral — estudante de Ciência da Computação")
 
@@ -322,9 +392,6 @@ def main():
     CARDS.mkdir(exist_ok=True)
     out = {
         "hero.svg": hero(s),
-        "projetos.svg": tile("projetos", BLUE, "PROJETOS", 7, "repos públicos", "Ver todos os projetos", 0.2),
-        "dados.svg": tile("dados", YELLOW, "DADOS & BI", s["active"], "dias ativos", "Python · Pandas · Power BI", 0.4),
-        "contato.svg": tile("contato", RED, "CONTATO", s["best"], "dias seguidos", "LinkedIn · Gmail", 0.6),
         "activity.svg": activity(s),
         "heatmap.svg": heatmap(days),
         "repo-savett.svg": repo_card("SAVETT", "IA de inteligência financeira — app e site para salvar seu dinheiro.", "TypeScript · React", GREEN, 0.2),
