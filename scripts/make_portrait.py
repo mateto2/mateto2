@@ -89,11 +89,23 @@ def color_portrait(src, mask, a):
     print(f"Retrato colorido salvo em {out} ({a.cols}x{rows})")
 
 
+def bw_image(src, mask, a):
+    """O próprio desenho em preto e branco, com fundo transparente (data/portrait.png)."""
+    from PIL import ImageFilter
+
+    gray = ImageOps.autocontrast(src.convert("L"), cutoff=1)
+    alpha = mask.filter(ImageFilter.GaussianBlur(1.5))  # borda suave
+    img = Image.merge("LA", (gray, alpha))
+    img.thumbnail((a.size, a.size), Image.LANCZOS)
+    path = OUT.parent / "portrait.png"
+    img.save(path, optimize=True)
+    print(f"Retrato P&B transparente salvo em {path} {img.size} ({path.stat().st_size // 1024} KB)")
+
+
 def mono_portrait(src, mask, a):
     """Preto e branco, sem fundo, com uma versão para cada tema do GitHub (data/portrait_mono.json).
 
-    claro : parte clara do desenho = caractere denso e escuro (efeito xilogravura)
-    escuro: parte clara do desenho  = caractere denso e claro
+    traços escuros do desenho = caracteres densos; preto no tema claro, branco no escuro
     """
     import json
 
@@ -103,12 +115,12 @@ def mono_portrait(src, mask, a):
     m = mask.resize((a.cols, rows), Image.LANCZOS).load()
     L = ImageOps.autocontrast(small.convert("L"), cutoff=2).load()
     V = small.convert("HSV").split()[2].load()
+    # tons claros (pele) ficam vazios; só os traços e áreas escuras viram caracteres
+    ink = lambda l: 0 if 255 - l < 70 else (255 - l - 70) * 255 // 185
+    # traço: quanto mais escuro o pixel do desenho, mais denso o caractere; uma cor só por tema
     themes = {
-        # (densidade a partir do pixel, cinza a partir do pixel)
-        "light": (lambda x, y: V[x, y],
-                  lambda x, y: "#0D1117" if V[x, y] > 200 else "#2D333B" if V[x, y] > 140 else "#57606A"),
-        "dark": (lambda x, y: V[x, y],
-                 lambda x, y: "#E6EDF3" if V[x, y] > 200 else "#B1BAC4" if V[x, y] > 140 else "#7D8590"),
+        "light": (lambda x, y: ink(L[x, y]), lambda x, y: "#1F2328"),
+        "dark": (lambda x, y: ink(L[x, y]), lambda x, y: "#F0F6FC"),
     }
     out = {"cols": a.cols}
     for name, (dens, gray) in themes.items():
@@ -142,6 +154,9 @@ def main():
     p.add_argument("--debug", help="salva a imagem recortada neste caminho")
     p.add_argument("--color", action="store_true",
                    help="retrato colorido para fundo escuro (gera data/portrait.json)")
+    p.add_argument("--image", action="store_true",
+                   help="o desenho em preto e branco com fundo transparente (data/portrait.png)")
+    p.add_argument("--size", type=int, default=560, help="tamanho máximo da imagem em px")
     p.add_argument("--mono", action="store_true",
                    help="preto e branco, sem fundo, versões clara e escura (data/portrait_mono.json)")
     p.add_argument("--colors", type=int, default=10, help="nº de cores no modo --color")
@@ -157,6 +172,8 @@ def main():
         mask = Image.new("L", src.size, 255)
     if a.debug:
         src.save(a.debug)
+    if a.image:
+        return bw_image(src, mask.crop(mask.getbbox()) if a.sticker else mask, a)
     if a.mono:
         return mono_portrait(src, mask.crop(mask.getbbox()) if a.sticker else mask, a)
     if a.color:
