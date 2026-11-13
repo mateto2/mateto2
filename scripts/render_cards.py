@@ -4,6 +4,11 @@ Uso:
     python scripts/render_cards.py            # busca contribuições e gera cards/
     STATIC=1 python scripts/render_cards.py   # gera tudo no estado final (sem animação)
 
+Cada card sai em duas versões, sem fundo, para combinar com o tema do GitHub:
+    cards/<nome>.svg       -> tema claro
+    cards/<nome>-dark.svg  -> tema escuro
+O README escolhe a versão certa com <picture> + prefers-color-scheme.
+
 Sem dependências externas: só a biblioteca padrão do Python.
 """
 import datetime as dt
@@ -21,16 +26,22 @@ CARDS = ROOT / "cards"
 DATA = ROOT / "data" / "contributions.json"
 STATIC = os.environ.get("STATIC") == "1"
 
-# ---------- paleta "papel e tinta" ----------
-PAPER = "#F6F1E7"
-PAPER_2 = "#EFE8DA"
-INK = "#1C1B19"
-MUTED = "#6B665C"
-LINE = "#D9D0BE"
-GREEN = "#0E9F6E"
-BLUE = "#2F5BEA"
-YELLOW = "#F2B705"
-RED = "#E4572E"
+# ---------- temas (sem fundo: o card herda o fundo do GitHub) ----------
+THEMES = {
+    "light": dict(
+        ink="#1F2328", muted="#656D76", line="#D0D7DE", panel="#F6F8FA",
+        accent="#2F5BEA", bar="#8EA8F5",
+        heat=["#EBEDF0", "#C9D6FB", "#8EA8F5", "#5277EE", "#2F5BEA"],
+        snake="#1F3FB0", portrait_box="#161B22",
+    ),
+    "dark": dict(
+        ink="#E6EDF3", muted="#8B949E", line="#30363D", panel="#161B22",
+        accent="#6F93FF", bar="#2A4C9E",
+        heat=["#161B22", "#1B3270", "#2A55C9", "#4F7BF0", "#9DB5FF"],
+        snake="#C9D6FB", portrait_box=None,
+    ),
+}
+T = THEMES["light"]  # tema atual (trocado em main)
 
 SERIF = "'Instrument Serif','Iowan Old Style','Palatino Linotype',Georgia,serif"
 SANS = "'Geist','Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif"
@@ -73,34 +84,52 @@ def stats(days):
     counts = list(days.values())
     total = sum(counts)
     active = sum(1 for c in counts if c)
-    # sequências
-    best = cur = run = 0
-    for c in counts:
+    best = run = 0
+    best_end = dates[-1]
+    for d, c in zip(dates, counts):
         run = run + 1 if c else 0
-        best = max(best, run)
-    # sequência atual (hoje ainda pode estar zerado: ignora o último dia nesse caso)
+        if run > best:
+            best, best_end = run, d
+    # sequência atual (hoje ainda pode estar zerado: nesse caso conta até ontem)
     seq = counts[:-1] if counts and counts[-1] == 0 else counts
+    cur = 0
     for c in reversed(seq):
         if not c:
             break
         cur += 1
-    # meses (últimos 12)
     months = OrderedDict()
     for d, c in zip(dates, counts):
-        key = (d.year, d.month)
-        months[key] = months.get(key, 0) + c
+        months[(d.year, d.month)] = months.get((d.year, d.month), 0) + c
     months = OrderedDict(list(months.items())[-12:])
-    # dia da semana mais ativo
     wd = [0] * 7
     for d, c in zip(dates, counts):
         wd[d.weekday()] += c
     busiest = DIAS[wd.index(max(wd))] if total else "—"
-    return dict(total=total, active=active, best=best, cur=cur, months=months, busiest=busiest)
+    return dict(
+        total=total, active=active, best=best, best_end=best_end, cur=cur, months=months,
+        busiest=busiest, first=dates[0], last=dates[-1],
+    )
+
+
+def fmt_date(d):
+    return f"{d.day} {MESES[d.month - 1]} {d.year}"
 
 
 # ---------- helpers SVG ----------
 def esc(s):
     return html.escape(str(s), quote=True)
+
+
+BASE_CSS = """
+.serif{font-family:%s} .sans{font-family:%s} .mono{font-family:%s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%%{opacity:0;transform:scale(.2)}70%%{opacity:1;transform:scale(1.15)}100%%{opacity:1;transform:scale(1)}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pulse{0%%{opacity:.7;transform:scale(1)}100%%{opacity:0;transform:scale(2.8)}}
+@keyframes nudge{0%%,70%%,100%%{transform:none}80%%{transform:translateX(5px)}}
+@keyframes draw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+""" % (SERIF, SANS, MONO)
 
 
 def svg(w, h, body, css="", label=""):
@@ -111,25 +140,6 @@ def svg(w, h, body, css="", label=""):
         f"<title>{esc(label)}</title>"
         f"<style>{BASE_CSS}{'' if STATIC else css}{reduced}"
         f"{'*{animation:none!important}' if STATIC else ''}</style>{body}</svg>"
-    )
-
-
-BASE_CSS = f"""
-.serif{{font-family:{SERIF}}} .sans{{font-family:{SANS}}} .mono{{font-family:{MONO}}}
-.ink{{fill:{INK}}} .muted{{fill:{MUTED}}}
-@keyframes rise{{from{{opacity:0;transform:translateY(14px)}}to{{opacity:1;transform:none}}}}
-@keyframes fade{{from{{opacity:0}}to{{opacity:1}}}}
-@keyframes pop{{0%{{opacity:0;transform:scale(.2)}}70%{{opacity:1;transform:scale(1.15)}}100%{{opacity:1;transform:scale(1)}}}}
-@keyframes grow{{from{{transform:scaleY(0)}}to{{transform:scaleY(1)}}}}
-@keyframes pulse{{0%{{opacity:.7;transform:scale(1)}}100%{{opacity:0;transform:scale(2.8)}}}}
-@keyframes nudge{{0%,70%,100%{{transform:none}}80%{{transform:translateX(5px)}}}}
-@keyframes swing{{0%{{opacity:0;transform:translateY(60px) rotate(-6deg)}}65%{{opacity:1;transform:translateY(-6px) rotate(1.5deg)}}100%{{opacity:1;transform:none}}}}
-"""
-
-
-def frame(w, h, r=18):
-    return (
-        f'<rect x="1" y="1" width="{w-2}" height="{h-2}" rx="{r}" fill="{PAPER}" stroke="{LINE}" stroke-width="1.5"/>'
     )
 
 
@@ -147,30 +157,25 @@ def shine_gradient(gid, base, glint, dur=4, delay=1.5):
     )
 
 
-def counter(x, y, value, cls, style, begin=0.6, frames=18, step=0.04):
+def counter(x, y, value, attrs, begin=0.6, frames=18, step=0.04):
     """Número que conta de 0 até value usando quadros <set> (CSS não muda texto)."""
     if STATIC or value == 0:
-        return f'<text x="{x}" y="{y}" class="{cls}" style="{style}">{value}</text>'
+        return f'<text x="{x}" y="{y}" {attrs}>{value}</text>'
     out = []
     for i in range(frames + 1):
         v = round(value * (i / frames) ** 0.6)
         start = begin + i * step
-        if i < frames:
-            out.append(
-                f'<text x="{x}" y="{y}" class="{cls}" style="{style}" opacity="0">{v}'
-                f'<set attributeName="opacity" to="1" begin="{start:.2f}s" dur="{step:.2f}s"/></text>'
-            )
-        else:
-            out.append(
-                f'<text x="{x}" y="{y}" class="{cls}" style="{style}" opacity="0">{v}'
-                f'<set attributeName="opacity" to="1" begin="{start:.2f}s" fill="freeze"/></text>'
-            )
+        timing = f'dur="{step:.2f}s"' if i < frames else 'fill="freeze"'
+        out.append(
+            f'<text x="{x}" y="{y}" {attrs} opacity="0">{v}'
+            f'<set attributeName="opacity" to="1" begin="{start:.2f}s" {timing}/></text>'
+        )
     return "".join(out)
 
 
-# ---------- cards ----------
+# ---------- retrato ----------
 def portrait_group(x, y, box_w, box_h, start=0.3):
-    """Retrato ASCII (data/portrait.txt); cada linha aparece 18 ms depois da anterior."""
+    """Retrato ASCII; cada linha aparece 18 ms depois da anterior."""
     cpath, path = ROOT / "data" / "portrait.json", ROOT / "data" / "portrait.txt"
     if cpath.exists():  # versão colorida: lista de trechos [texto, cor] por linha
         runs = json.loads(cpath.read_text(encoding="utf-8"))["lines"]
@@ -183,22 +188,21 @@ def portrait_group(x, y, box_w, box_h, start=0.3):
     lines = ["".join(t for t, _ in r) for r in runs]
     cols = max(len(l) for l in lines)
     fs = min(box_w / (cols * 0.6), box_h / len(lines))  # mono: largura ≈ 0.6em
-    x += (box_w - cols * 0.6 * fs) / 2  # centraliza na caixa
+    x += (box_w - cols * 0.6 * fs) / 2
     y += (box_h - len(lines) * fs) / 2
     cw = 0.6 * fs
-    out = [f'<g class="mono" font-size="{fs:.2f}" fill="{INK}" style="white-space:pre" xml:space="preserve">']
+    out = [f'<g class="mono" font-size="{fs:.2f}" fill="{T["ink"]}">']
     for i, line in enumerate(lines):
         if not line.strip():
             continue
         anim = "" if STATIC else f' style="animation:fade .25s ease-out {start + i*0.018:.3f}s both"'
-        out.append(f'<g{anim}>')
+        out.append(f"<g{anim}>")
         col = 0
         for text, color in runs[i]:
             if text.strip():
                 lead = len(text) - len(text.lstrip())
                 body = text.strip()
                 fill = f' fill="{color}"' if color else ""
-                # cada trecho é posicionado pela coluna, então não depende da fonte disponível
                 out.append(
                     f'<text x="{x + (col+lead)*cw:.1f}" y="{y + (i+1)*fs:.1f}" textLength="{len(body)*cw:.1f}" '
                     f'lengthAdjust="spacingAndGlyphs"{fill}>{esc(body)}</text>'
@@ -209,153 +213,182 @@ def portrait_group(x, y, box_w, box_h, start=0.3):
     return "".join(out)
 
 
+# ---------- cards ----------
 def hero(s):
-    portrait = portrait_group(612, 22, 240, 296)
-    if portrait:
-        return hero_with_portrait(s, portrait)
-    w, h = 880, 300
+    w, h = 880, 320
     css = """
     .l1{animation:rise .8s ease-out .1s both}.l2{animation:rise .8s ease-out .35s both}
     .l3{animation:rise .8s ease-out .6s both}.l4{animation:fade 1s ease-out 1s both}
     .dot{animation:pulse 1.8s ease-out 1.2s infinite;transform-box:fill-box;transform-origin:center}
     .ar{animation:nudge 3s ease-in-out 2s infinite}
     """
-    body = (
-        frame(w, h)
-        + f"<defs>{shine_gradient('nm', INK, GREEN, 5, 1.6)}</defs>"
-        + f'<text x="56" y="70" class="mono muted l1" font-size="14" letter-spacing="2">OLÁ, EU SOU</text>'
-        + f'<text x="52" y="150" class="serif l2" font-size="84" fill="{INK}">Matheus '
-        + f'<tspan font-style="italic" fill="url(#nm)">Amaral</tspan></text>'
-        + f'<text x="56" y="196" class="sans l3" font-size="21" fill="{INK}">Estudante de Ciência da Computação — desenvolvimento web &amp; análise de dados.</text>'
-        + '<g class="l4">'
-        + f'<circle cx="62" cy="244" r="5" fill="{GREEN}"/><circle class="dot" cx="62" cy="244" r="5" fill="{GREEN}"/>'
-        + f'<text x="78" y="249" class="sans" font-size="15" fill="{MUTED}">Aprendendo na prática, um projeto por vez</text>'
-        + f'<text x="824" y="249" class="mono" font-size="14" fill="{INK}" text-anchor="end">'
-        + f'{s["total"]} contribuições no último ano <tspan class="ar">→</tspan></text>'
-        + "</g>"
-        # detalhe decorativo: três "carimbos" coloridos
-        + f'<g class="l3"><circle cx="760" cy="80" r="26" fill="{BLUE}" opacity=".9"/>'
-        + f'<circle cx="800" cy="80" r="26" fill="{YELLOW}" opacity=".9"/>'
-        + f'<circle cx="780" cy="112" r="26" fill="{RED}" opacity=".85"/></g>'
+    box = (
+        f'<rect x="596" y="4" width="276" height="312" rx="14" fill="{T["portrait_box"]}"/>'
+        if T["portrait_box"] else ""
     )
-    return svg(w, h, body, css, "Matheus Amaral — estudante de Ciência da Computação")
-
-
-def hero_with_portrait(s, portrait):
-    w, h = 880, 340
-    css = """
-    .l1{animation:rise .8s ease-out .1s both}.l2{animation:rise .8s ease-out .35s both}
-    .l3{animation:rise .8s ease-out .6s both}.l4{animation:fade 1s ease-out 1s both}
-    .dot{animation:pulse 1.8s ease-out 1.2s infinite;transform-box:fill-box;transform-origin:center}
-    .ar{animation:nudge 3s ease-in-out 2s infinite}
-    """
+    portrait = portrait_group(612, 12, 244, 296) or ""
     body = (
-        frame(w, h)
-        + f"<defs>{shine_gradient('nm', INK, GREEN, 5, 1.6)}</defs>"
-        + f'<rect x="596" y="14" width="270" height="312" rx="12" '
-        f'fill="{INK if (ROOT / "data" / "portrait.json").exists() else PAPER_2}"/>'
-        + portrait
-        + f'<text x="56" y="78" class="mono muted l1" font-size="14" letter-spacing="2">OLÁ, EU SOU</text>'
-        + f'<text x="52" y="152" class="serif l2" font-size="76" fill="{INK}">Matheus</text>'
-        + f'<text x="52" y="222" class="serif l2" font-size="76" font-style="italic" fill="url(#nm)">Amaral</text>'
-        + f'<text class="sans l3" font-size="18" fill="{INK}"><tspan x="56" y="260">Estudante de Ciência da Computação —</tspan>'
-        + f'<tspan x="56" y="284">desenvolvimento web &amp; análise de dados.</tspan></text>'
+        f"<defs>{shine_gradient('nm', T['ink'], T['accent'], 5, 1.6)}</defs>"
+        + box + portrait
+        + f'<text x="8" y="62" class="mono l1" font-size="14" letter-spacing="2" fill="{T["muted"]}">OLÁ, EU SOU</text>'
+        + f'<text x="4" y="136" class="serif l2" font-size="76" fill="{T["ink"]}">Matheus</text>'
+        + f'<text x="4" y="206" class="serif l2" font-size="76" font-style="italic" fill="url(#nm)">Amaral</text>'
+        + f'<text x="8" y="246" class="sans l3" font-size="19" fill="{T["ink"]}">Estudante de Ciência da Computação</text>'
+        + f'<text x="8" y="272" class="sans l3" font-size="19" fill="{T["accent"]}" font-weight="600">Web Developer &amp; Automação de IA</text>'
         + '<g class="l4">'
-        + f'<circle cx="62" cy="310" r="5" fill="{GREEN}"/><circle class="dot" cx="62" cy="310" r="5" fill="{GREEN}"/>'
-        + f'<text x="78" y="315" class="mono" font-size="13" fill="{MUTED}">{s["total"]} contribuições no último ano <tspan class="ar">→</tspan></text>'
+        + f'<circle cx="14" cy="302" r="5" fill="{T["accent"]}"/><circle class="dot" cx="14" cy="302" r="5" fill="{T["accent"]}"/>'
+        + f'<text x="30" y="307" class="mono" font-size="13" fill="{T["muted"]}">{s["total"]} contribuições no último ano <tspan class="ar">→</tspan></text>'
         + "</g>"
     )
-    return svg(w, h, body, css, "Matheus Amaral — estudante de Ciência da Computação")
+    return svg(w, h, body, css, "Matheus Amaral — Estudante de Ciência da Computação, Web Developer e Automação de IA")
 
 
-def tile(kind, color, title, big, unit, sub, delay):
-    w, h = 286, 220
-    dark = kind != "dados"
-    fg = PAPER if dark else INK
+def streak(s):
+    """Substitui o card externo de streak: total, sequência atual (anel) e maior sequência."""
+    w, h = 880, 200
+    cx, cy, r = 440, 92, 48
+    circ = 2 * 3.14159 * r
     css = f"""
-    .card{{animation:swing 1s cubic-bezier(.2,.8,.3,1.2) {delay}s both;transform-box:fill-box;transform-origin:50% 100%}}
-    .ring{{animation:pulse 2.4s ease-out {delay+1:.1f}s infinite;transform-box:fill-box;transform-origin:center}}
-    .ar{{animation:nudge 3s ease-in-out {delay+1.5:.1f}s infinite}}
+    .c1{{animation:rise .7s ease-out .2s both}}.c3{{animation:rise .7s ease-out .5s both}}
+    .ring{{--len:{circ:.1f};stroke-dasharray:{circ:.1f};animation:draw 1.2s ease-out .3s both}}
+    .fire{{animation:pop .6s ease-out 1.3s both;transform-box:fill-box;transform-origin:center}}
+    .lb{{animation:fade .8s ease-out .9s both}}
     """
+    num = f'class="serif" font-size="40" text-anchor="middle" fill="{T["ink"]}"'
+    lbl = lambda x, y, t, c: f'<text x="{x}" y="{y}" class="sans lb" font-size="15" text-anchor="middle" fill="{c}" font-weight="600">{t}</text>'
+    sub = lambda x, y, t: f'<text x="{x}" y="{y}" class="mono lb" font-size="12" text-anchor="middle" fill="{T["muted"]}">{t}</text>'
     body = (
-        f"<defs>{shine_gradient('sh'+kind, 'rgba(255,255,255,0)', 'rgba(255,255,255,.35)', 5, delay+1.2)}</defs>"
-        + '<g class="card">'
-        + f'<rect x="1" y="1" width="{w-2}" height="{h-2}" rx="20" fill="{color}"/>'
-        + f'<rect x="1" y="1" width="{w-2}" height="{h-2}" rx="20" fill="url(#sh{kind})"/>'
-        + f'<circle cx="{w-34}" cy="34" r="9" fill="none" stroke="{fg}" stroke-width="2"/>'
-        + f'<circle class="ring" cx="{w-34}" cy="34" r="9" fill="none" stroke="{fg}" stroke-width="2"/>'
-        + f'<text x="26" y="44" class="mono" font-size="13" letter-spacing="2" fill="{fg}" opacity=".85">{esc(title)}</text>'
-        + counter(24, 132, big, "serif", f"font-size:78px;fill:{fg}", begin=delay + 0.5)
-        + f'<text x="{26 + 40*len(str(big))}" y="132" class="sans" font-size="18" fill="{fg}" opacity=".85">{esc(unit)}</text>'
-        + f'<text x="26" y="186" class="sans" font-size="16" fill="{fg}">{esc(sub)} <tspan class="ar">→</tspan></text>'
-        + "</g>"
+        f'<line x1="293" y1="40" x2="293" y2="160" stroke="{T["line"]}"/>'
+        f'<line x1="587" y1="40" x2="587" y2="160" stroke="{T["line"]}"/>'
+        # total
+        + '<g class="c1">' + counter(146, 102, s["total"], num, begin=0.3)
+        + lbl(146, 138, "Contribuições totais", T["ink"])
+        + sub(146, 160, f"{fmt_date(s['first'])} – hoje") + "</g>"
+        # sequência atual
+        + f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{T["line"]}" stroke-width="5"/>'
+        + f'<circle class="ring" cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{T["accent"]}" stroke-width="5" '
+        f'stroke-linecap="round" transform="rotate(-90 {cx} {cy})"/>'
+        + f'<path class="fire" d="M{cx} {cy-r-16}c6 7 10 11 10 17a10 10 0 0 1-20 0c0-4 2-7 4-9 0 4 2 6 4 6-1-5 0-9 2-14z" '
+        f'fill="{T["accent"]}"/>'
+        + counter(cx, cy + 14, s["cur"], num, begin=0.5)
+        + lbl(cx, 172, "Sequência atual", T["accent"])
+        + sub(cx, 192, "dias seguidos")
+        # maior sequência
+        + '<g class="c3">' + counter(734, 102, s["best"], num, begin=0.6)
+        + lbl(734, 138, "Maior sequência", T["ink"])
+        + sub(734, 160, f"até {fmt_date(s['best_end'])}") + "</g>"
     )
-    return svg(w, h, body, css, f"{title}: {big} {unit}")
+    return svg(w, h, body, css, f"Sequência atual de {s['cur']} dias; maior sequência {s['best']}; {s['total']} contribuições")
+
+
+def snake(days):
+    """Grade de contribuições com uma cobrinha que anda de um lado para o outro e 'come' os quadrados."""
+    w = 880
+    items = list(days.items())
+    first = dt.date.fromisoformat(items[0][0])
+    pad = (first.weekday() + 1) % 7  # GitHub começa a semana no domingo
+    peak = max([c for _, c in items] + [1])
+    cell, gap, x0, y0 = 12, 3.2, 26, 36
+    step = cell + gap
+    ncols = (len(items) + pad + 6) // 7
+    h = int(y0 + 7 * step + 20)
+    grid = {}
+    for i, (d, c) in enumerate(items):
+        col, row = divmod(i + pad, 7)
+        grid[(col, row)] = (d, c)
+
+    # caminho em zigue-zague, linha por linha (esquerda→direita, depois direita→esquerda)
+    order = []
+    for row in range(7):
+        cols = range(ncols) if row % 2 == 0 else range(ncols - 1, -1, -1)
+        order += [(c, row) for c in cols]
+    pos = {p: i for i, p in enumerate(order)}
+    tick = 0.045  # segundos por casa
+    walk = len(order) * tick
+    dur = walk + 2.5  # pausa no fim antes de recomeçar
+    heat = T["heat"]
+
+    rects = []
+    for (col, row), (d, c) in grid.items():
+        x, y = x0 + col * step, y0 + row * step
+        lvl = 0 if c == 0 else min(4, 1 + int(3 * c / peak))
+        anim = ""
+        if c and not STATIC:
+            t = pos[(col, row)] * tick / dur
+            anim = (
+                f'<animate attributeName="fill" values="{heat[lvl]};{heat[lvl]};{heat[0]};{heat[0]}" '
+                f'keyTimes="0;{t:.4f};{min(t+0.002, .999):.4f};1" dur="{dur:.2f}s" repeatCount="indefinite"/>'
+            )
+        rects.append(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{cell}" height="{cell}" rx="3" fill="{heat[lvl]}">'
+            f"<title>{d}: {c}</title>{anim}</rect>"
+        )
+
+    snake_svg = ""
+    if not STATIC:
+        pts = [(x0 + c * step + cell / 2, y0 + r * step + cell / 2) for c, r in order]
+        d = "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in pts)
+        segs = []
+        n = 6
+        for k in range(n):
+            size = cell - 1 - k * 1.1
+            delay = k * tick * 1.0
+            op = 1 - k * 0.12
+            # cada gomo segue o mesmo caminho, um pouco atrás do anterior
+            segs.append(
+                f'<rect x="{-size/2:.1f}" y="{-size/2:.1f}" width="{size:.1f}" height="{size:.1f}" rx="{size/3:.1f}" '
+                f'fill="{T["snake"]}" opacity="0">'
+                f'<animateMotion path="{d}" dur="{dur:.2f}s" begin="{delay:.3f}s" repeatCount="indefinite" '
+                f'keyPoints="0;1;1" keyTimes="0;{walk/dur:.4f};1" calcMode="linear"/>'
+                f'<animate attributeName="opacity" values="{op:.2f};{op:.2f};0;0" keyTimes="0;{walk/dur:.4f};{min(walk/dur+.01,.999):.4f};1" '
+                f'dur="{dur:.2f}s" begin="{delay:.3f}s" repeatCount="indefinite"/></rect>'
+            )
+        snake_svg = "<g>" + "".join(reversed(segs)) + "</g>"
+
+    body = (
+        f'<text x="{x0}" y="22" class="mono" font-size="13" letter-spacing="2" fill="{T["muted"]}">'
+        f"CONTRIBUIÇÕES · {sum(days.values())} NO ÚLTIMO ANO</text>"
+        + "".join(rects) + snake_svg
+    )
+    return svg(w, h, body, "", "Gráfico de contribuições do último ano com uma cobrinha animada")
 
 
 def activity(s):
-    w, h = 880, 330
+    w, h = 880, 300
     months = list(s["months"].items())
     peak = max([v for _, v in months] + [1])
     best_i = max(range(len(months)), key=lambda i: months[i][1]) if months else 0
-    x0, base, maxh, bw, gap = 56, 250, 140, 46, 18
+    x0, base, maxh, bw, gap = 40, 220, 140, 48, 19
     css = ".hd{animation:rise .7s ease-out .1s both}.st{animation:fade .8s ease-out 1.6s both}"
     bars = []
     for i, ((y, m), v) in enumerate(months):
         bh = max(3, v / peak * maxh)
         x = x0 + i * (bw + gap)
-        color = BLUE if i == best_i and v else INK
+        color = T["accent"] if i == best_i and v else T["bar"]
         d = 0.3 + i * 0.07
         anim = "" if STATIC else f' style="animation:grow .7s cubic-bezier(.2,.8,.3,1) {d:.2f}s both;transform-box:fill-box;transform-origin:bottom"'
-        bars.append(f'<rect x="{x}" y="{base-bh:.1f}" width="{bw}" height="{bh:.1f}" rx="6" fill="{color}" opacity="{1 if v else .25}"{anim}/>')
-        bars.append(f'<text x="{x+bw/2}" y="{base+24}" class="mono muted" font-size="12" text-anchor="middle">{MESES[m-1]}</text>')
+        bars.append(f'<rect x="{x}" y="{base-bh:.1f}" width="{bw}" height="{bh:.1f}" rx="6" fill="{color}" opacity="{1 if v else .35}"{anim}/>')
+        bars.append(f'<text x="{x+bw/2}" y="{base+22}" class="mono" font-size="12" text-anchor="middle" fill="{T["muted"]}">{MESES[m-1]}</text>')
         if i == best_i and v:
             pa = "" if STATIC else f' style="animation:pop .5s ease-out {d+0.7:.2f}s both;transform-box:fill-box;transform-origin:center"'
-            bars.append(f'<text x="{x+bw/2}" y="{base-bh-10:.1f}" class="sans" font-size="15" font-weight="600" fill="{BLUE}" text-anchor="middle"{pa}>{v}</text>')
+            bars.append(f'<text x="{x+bw/2}" y="{base-bh-10:.1f}" class="sans" font-size="15" font-weight="600" fill="{T["accent"]}" text-anchor="middle"{pa}>{v}</text>')
     stat = lambda x, n, l: (
-        f'<text x="{x}" y="306" class="sans" font-size="14" fill="{MUTED}">{l} '
-        f'<tspan class="serif" font-size="20" fill="{INK}">{n}</tspan></text>'
+        f'<text x="{x}" y="282" class="sans" font-size="14" fill="{T["muted"]}">{l} '
+        f'<tspan class="serif" font-size="20" fill="{T["ink"]}">{n}</tspan></text>'
     )
     body = (
-        frame(w, h)
-        + f'<text x="56" y="56" class="serif hd" font-size="32" fill="{INK}">Atividade por mês</text>'
-        + f'<text x="824" y="56" class="mono hd" font-size="13" fill="{MUTED}" text-anchor="end">ÚLTIMOS 12 MESES</text>'
-        + f'<line x1="56" y1="{base}" x2="824" y2="{base}" stroke="{LINE}"/>'
+        f'<text x="40" y="34" class="serif hd" font-size="30" fill="{T["ink"]}">Atividade por mês</text>'
+        + f'<text x="840" y="34" class="mono hd" font-size="13" fill="{T["muted"]}" text-anchor="end">ÚLTIMOS 12 MESES</text>'
+        + f'<line x1="40" y1="{base}" x2="840" y2="{base}" stroke="{T["line"]}"/>'
         + "".join(bars)
         + '<g class="st">'
-        + stat(56, s["total"], "total")
-        + stat(220, s["active"], "dias ativos")
-        + stat(410, s["best"], "maior sequência")
-        + stat(630, s["busiest"], "dia favorito:")
+        + stat(40, s["total"], "total")
+        + stat(210, s["active"], "dias ativos")
+        + stat(400, s["best"], "maior sequência")
+        + stat(620, s["busiest"], "dia favorito:")
         + "</g>"
     )
     return svg(w, h, body, css, f"{s['total']} contribuições nos últimos 12 meses")
-
-
-def heatmap(days):
-    w, h = 880, 190
-    items = list(days.items())
-    first = dt.date.fromisoformat(items[0][0])
-    pad = (first.weekday() + 1) % 7  # GitHub começa a semana no domingo
-    levels = [PAPER_2, "#C9D6FB", "#8EA8F5", "#5277EE", BLUE]
-    peak = max([c for _, c in items] + [1])
-    cell, gap, x0, y0 = 12, 3, 52, 50
-    rects = []
-    for i, (d, c) in enumerate(items):
-        k = i + pad
-        col, row = divmod(k, 7)
-        lvl = 0 if c == 0 else min(4, 1 + int(3 * c / peak))
-        anim = "" if STATIC else f' style="animation:pop .35s ease-out {0.2 + col*0.025:.3f}s both;transform-box:fill-box;transform-origin:center"'
-        rects.append(
-            f'<rect x="{x0 + col*(cell+gap)}" y="{y0 + row*(cell+gap)}" width="{cell}" height="{cell}" rx="3" fill="{levels[lvl]}"{anim}>'
-            f"<title>{d}: {c}</title></rect>"
-        )
-    body = (
-        frame(w, h)
-        + f'<text x="52" y="34" class="mono" font-size="13" letter-spacing="2" fill="{MUTED}">CONTRIBUIÇÕES · {sum(days.values())} NO ÚLTIMO ANO</text>'
-        + "".join(rects)
-    )
-    return svg(w, h, body, "", "Gráfico de contribuições do último ano")
 
 
 def repo_card(name, desc, lang, color, delay):
@@ -369,37 +402,102 @@ def repo_card(name, desc, lang, color, delay):
         else:
             cur = (cur + " " + wd).strip()
     lines.append(cur)
-    lines = lines[:2]
     body = (
-        f'<defs><clipPath id="cp"><rect x="1" y="1" width="{w-2}" height="{h-2}" rx="16"/></clipPath></defs>'
+        f'<defs><clipPath id="cp"><rect x="1" y="1" width="{w-2}" height="{h-2}" rx="14"/></clipPath></defs>'
         '<g class="rc">'
-        + frame(w, h, 16)
-        + f'<rect x="0" y="0" width="9" height="{h}" fill="{color}" clip-path="url(#cp)"/>'
-        + f'<text x="30" y="46" class="serif" font-size="27" fill="{INK}">{esc(name)} <tspan class="ar sans" font-size="18">↗</tspan></text>'
+        + f'<rect x="1" y="1" width="{w-2}" height="{h-2}" rx="14" fill="none" stroke="{T["line"]}" stroke-width="1.5"/>'
+        + f'<rect x="0" y="0" width="7" height="{h}" fill="{color}" clip-path="url(#cp)"/>'
+        + f'<text x="28" y="46" class="serif" font-size="27" fill="{T["ink"]}">{esc(name)} <tspan class="ar sans" font-size="18">↗</tspan></text>'
         + "".join(
-            f'<text x="30" y="{80 + i*21}" class="sans" font-size="14.5" fill="{MUTED}">{esc(l)}</text>' for i, l in enumerate(lines)
+            f'<text x="28" y="{80 + i*21}" class="sans" font-size="14.5" fill="{T["muted"]}">{esc(l)}</text>' for i, l in enumerate(lines[:2])
         )
-        + f'<circle cx="36" cy="{h-24}" r="5" fill="{color}"/>'
-        + f'<text x="48" y="{h-19}" class="mono" font-size="12.5" fill="{INK}">{esc(lang)}</text>'
+        + f'<circle cx="34" cy="{h-24}" r="5" fill="{color}"/>'
+        + f'<text x="46" y="{h-19}" class="mono" font-size="12.5" fill="{T["ink"]}">{esc(lang)}</text>'
         + "</g>"
     )
     return svg(w, h, body, css, f"Repositório {name}")
 
 
+# ---------- tecnologias ----------
+# (slug do ícone em data/icons.json, nome, cor no tema claro, cor no tema escuro)
+TECH = [
+    ("FRONT-END", [
+        ("typescript", "TypeScript", "#3178C6", "#3178C6"),
+        ("javascript", "JavaScript", "#E3C000", "#F7DF1E"),
+        ("react", "React", "#0A9CC4", "#61DAFB"),
+        ("tailwindcss", "Tailwind CSS", "#06B6D4", "#38BDF8"),
+        ("vite", "Vite", "#646CFF", "#8B91FF"),
+    ]),
+    ("BACK-END", [
+        ("nodedotjs", "Node.js", "#5FA04E", "#6CC24A"),
+        ("python", "Python", "#3776AB", "#5A9FD4"),
+    ]),
+    ("DADOS", [
+        ("python", "Python", "#3776AB", "#5A9FD4"),
+        ("pandas", "Pandas", "#150458", "#E70488"),
+        ("microsoftexcel", "Excel", "#217346", "#33C481"),
+        ("powerquery", "Power Query", "#217346", "#33C481"),
+        ("powerbi", "Power BI", "#D4A900", "#F2C811"),
+        ("jupyter", "Jupyter", "#F37626", "#F37626"),
+    ]),
+    ("AUTOMAÇÃO", [
+        ("n8n", "n8n", "#EA4B71", "#EA4B71"),
+    ]),
+]
+# Power Query não tem ícone oficial no Simple Icons: tabela com seta (desenho próprio, 24x24)
+POWERQUERY = "M2 3h14v4H2zm0 6h6v4H2zm8 0h6v4h-6zm-8 6h6v4H2zm8 0h6v4h-6zm9.5-5.5L23 13l-3.5 3.5V14H17v-2h2.5z"
+
+
+def tech():
+    icons = json.loads((ROOT / "data" / "icons.json").read_text(encoding="utf-8"))
+    icons["powerquery"] = POWERQUERY
+    w = 880
+    colw = w / len(TECH)
+    rowh = 40
+    h = int(58 + max(len(items) for _, items in TECH) * rowh + 6)
+    dark = T is THEMES["dark"]
+    out = []
+    for ci, (title, items) in enumerate(TECH):
+        x = ci * colw + 8
+        hd = "" if STATIC else f' style="animation:rise .6s ease-out {0.1 + ci*0.12:.2f}s both"'
+        out.append(
+            f'<g{hd}><text x="{x}" y="22" class="mono" font-size="13" letter-spacing="2" fill="{T["muted"]}">{title}</text>'
+            f'<line x1="{x}" y1="34" x2="{x + colw - 28}" y2="34" stroke="{T["accent"]}" stroke-width="2"/></g>'
+        )
+        for ri, (slug, name, c_light, c_dark) in enumerate(items):
+            color = c_dark if dark else c_light
+            y = 52 + ri * rowh
+            delay = 0.35 + ci * 0.12 + ri * 0.07
+            anim = "" if STATIC else f' style="animation:rise .5s ease-out {delay:.2f}s both"'
+            out.append(
+                f"<g{anim}>"
+                f'<rect x="{x}" y="{y}" width="30" height="30" rx="8" fill="{T["panel"]}" stroke="{T["line"]}"/>'
+                f'<path d="{icons[slug]}" fill="{color}" transform="translate({x+6} {y+6}) scale(.75)"/>'
+                f'<text x="{x+42}" y="{y+20}" class="sans" font-size="15" fill="{T["ink"]}">{esc(name)}</text>'
+                "</g>"
+            )
+    return svg(w, h, "".join(out), "", "Tecnologias: front-end, back-end, dados e automação")
+
+
 def main():
+    global T
     days = load_days()
     s = stats(days)
     CARDS.mkdir(exist_ok=True)
-    out = {
-        "hero.svg": hero(s),
-        "activity.svg": activity(s),
-        "heatmap.svg": heatmap(days),
-        "repo-savett.svg": repo_card("SAVETT", "IA de inteligência financeira — app e site para salvar seu dinheiro.", "TypeScript · React", GREEN, 0.2),
-        "repo-bi.svg": repo_card("bi-inflacao-brasil", "BI da inflação no Brasil (2021–2026) com dados do IBGE, BCB e Ipeadata.", "Jupyter · Power BI", YELLOW, 0.4),
-    }
-    for name, content in out.items():
-        (CARDS / name).write_text(content, encoding="utf-8")
-    print(f"{len(out)} cards gerados em {CARDS} — total={s['total']} ativos={s['active']} sequência={s['best']}")
+    for theme, suffix in (("light", ""), ("dark", "-dark")):
+        T = THEMES[theme]
+        out = {
+            "hero": hero(s),
+            "streak": streak(s),
+            "snake": snake(days),
+            "activity": activity(s),
+            "tech": tech(),
+            "repo-savett": repo_card("SAVETT", "IA de inteligência financeira — app e site para salvar seu dinheiro.", "TypeScript · React", "#0E9F6E", 0.2),
+            "repo-bi": repo_card("bi-inflacao-brasil", "BI da inflação no Brasil (2021–2026) com dados do IBGE, BCB e Ipeadata.", "Jupyter · Power BI", "#F2B705", 0.4),
+        }
+        for name, content in out.items():
+            (CARDS / f"{name}{suffix}.svg").write_text(content, encoding="utf-8")
+    print(f"cards gerados — total={s['total']} sequência atual={s['cur']} maior={s['best']}")
 
 
 if __name__ == "__main__":

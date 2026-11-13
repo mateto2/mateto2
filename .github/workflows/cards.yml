@@ -2,7 +2,7 @@ name: Atualizar cards do README
 
 on:
   schedule:
-    - cron: "17 6 * * *"   # todo dia, 03:17 no horário de Brasília
+    - cron: "17 */4 * * *"   # a cada 4 horas
   workflow_dispatch:        # botão "Run workflow" na aba Actions
   push:
     paths:
