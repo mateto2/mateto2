@@ -89,6 +89,48 @@ def color_portrait(src, mask, a):
     print(f"Retrato colorido salvo em {out} ({a.cols}x{rows})")
 
 
+def mono_portrait(src, mask, a):
+    """Preto e branco, sem fundo, com uma versão para cada tema do GitHub (data/portrait_mono.json).
+
+    claro : parte clara do desenho = caractere denso e escuro (efeito xilogravura)
+    escuro: parte clara do desenho  = caractere denso e claro
+    """
+    import json
+
+    ramp = " .:-=+*#%@"
+    rows = max(1, round(src.height / src.width * a.cols * 0.5))
+    small = src.resize((a.cols, rows), Image.LANCZOS)
+    m = mask.resize((a.cols, rows), Image.LANCZOS).load()
+    L = ImageOps.autocontrast(small.convert("L"), cutoff=2).load()
+    V = small.convert("HSV").split()[2].load()
+    themes = {
+        # (densidade a partir do pixel, cinza a partir do pixel)
+        "light": (lambda x, y: V[x, y],
+                  lambda x, y: "#0D1117" if V[x, y] > 200 else "#2D333B" if V[x, y] > 140 else "#57606A"),
+        "dark": (lambda x, y: V[x, y],
+                 lambda x, y: "#E6EDF3" if V[x, y] > 200 else "#B1BAC4" if V[x, y] > 140 else "#7D8590"),
+    }
+    out = {"cols": a.cols}
+    for name, (dens, gray) in themes.items():
+        lines = []
+        for y in range(rows):
+            runs = []
+            for x in range(a.cols):
+                ch, col = " ", None
+                if m[x, y] >= 128:
+                    ch = ramp[min(len(ramp) - 1, dens(x, y) * len(ramp) // 256)]
+                    col = gray(x, y) if ch != " " else None
+                if runs and runs[-1][1] == col:
+                    runs[-1][0] += ch
+                else:
+                    runs.append([ch, col])
+            lines.append(runs)
+        out[name] = lines
+    path = OUT.parent / "portrait_mono.json"
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    print(f"Retrato P&B salvo em {path} ({a.cols}x{rows})")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("foto")
@@ -100,6 +142,8 @@ def main():
     p.add_argument("--debug", help="salva a imagem recortada neste caminho")
     p.add_argument("--color", action="store_true",
                    help="retrato colorido para fundo escuro (gera data/portrait.json)")
+    p.add_argument("--mono", action="store_true",
+                   help="preto e branco, sem fundo, versões clara e escura (data/portrait_mono.json)")
     p.add_argument("--colors", type=int, default=10, help="nº de cores no modo --color")
     a = p.parse_args()
 
@@ -113,6 +157,8 @@ def main():
         mask = Image.new("L", src.size, 255)
     if a.debug:
         src.save(a.debug)
+    if a.mono:
+        return mono_portrait(src, mask.crop(mask.getbbox()) if a.sticker else mask, a)
     if a.color:
         return color_portrait(src, mask.crop(mask.getbbox()) if a.sticker else mask, a)
     img = src.convert("L")

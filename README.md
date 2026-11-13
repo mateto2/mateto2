@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="./cards/tech-dark.svg" /><img src="./cards/tech.svg" width="880" alt="Tecnologias — Front-end: TypeScript, JavaScript, React, Tailwind CSS, Vite. Back-end: Node.js, Python. Dados: Python, Pandas, Excel, Power Query, Power BI, Jupyter. Automação: n8n" /></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="./cards/tech-dark.svg" /><img src="./cards/tech.svg" width="880" alt="Tech Stack — linguagens, frontend, backend e cloud, banco de dados e testes, dados e BI, automação, IA e LLM" /></picture>
 </p>
 
 <p align="center">

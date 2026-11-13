@@ -32,7 +32,7 @@ THEMES = {
         ink="#1F2328", muted="#656D76", line="#D0D7DE", panel="#F6F8FA",
         accent="#2F5BEA", bar="#8EA8F5",
         heat=["#EBEDF0", "#C9D6FB", "#8EA8F5", "#5277EE", "#2F5BEA"],
-        snake="#1F3FB0", portrait_box="#161B22",
+        snake="#1F3FB0", portrait_box=None,
     ),
     "dark": dict(
         ink="#E6EDF3", muted="#8B949E", line="#30363D", panel="#161B22",
@@ -176,8 +176,11 @@ def counter(x, y, value, attrs, begin=0.6, frames=18, step=0.04):
 # ---------- retrato ----------
 def portrait_group(x, y, box_w, box_h, start=0.3):
     """Retrato ASCII; cada linha aparece 18 ms depois da anterior."""
+    mpath = ROOT / "data" / "portrait_mono.json"
     cpath, path = ROOT / "data" / "portrait.json", ROOT / "data" / "portrait.txt"
-    if cpath.exists():  # versão colorida: lista de trechos [texto, cor] por linha
+    if mpath.exists():  # preto e branco: uma versão por tema
+        runs = json.loads(mpath.read_text(encoding="utf-8"))["dark" if T is THEMES["dark"] else "light"]
+    elif cpath.exists():  # versão colorida: lista de trechos [texto, cor] por linha
         runs = json.loads(cpath.read_text(encoding="utf-8"))["lines"]
     elif path.exists():
         runs = [[[l, None]] for l in path.read_text(encoding="utf-8").splitlines()]
@@ -191,7 +194,8 @@ def portrait_group(x, y, box_w, box_h, start=0.3):
     x += (box_w - cols * 0.6 * fs) / 2
     y += (box_h - len(lines) * fs) / 2
     cw = 0.6 * fs
-    out = [f'<g class="mono" font-size="{fs:.2f}" fill="{T["ink"]}">']
+    weight = "" if T is THEMES["dark"] else ' font-weight="700"'  # no branco, traço mais grosso
+    out = [f'<g class="mono" font-size="{fs:.2f}" fill="{T["ink"]}"{weight}>']
     for i, line in enumerate(lines):
         if not line.strip():
             continue
@@ -421,27 +425,45 @@ def repo_card(name, desc, lang, color, delay):
 # ---------- tecnologias ----------
 # (slug do ícone em data/icons.json, nome, cor no tema claro, cor no tema escuro)
 TECH = [
-    ("FRONT-END", [
+    ("LANGUAGES", [
         ("typescript", "TypeScript", "#3178C6", "#3178C6"),
-        ("javascript", "JavaScript", "#E3C000", "#F7DF1E"),
+        ("javascript", "JavaScript", "#C9A800", "#F7DF1E"),
+        ("python", "Python", "#3776AB", "#5A9FD4"),
+        ("html5", "HTML", "#E34F26", "#F06529"),
+        ("css3", "CSS", "#1572B6", "#3C9CD7"),
+    ]),
+    ("FRONTEND", [
         ("react", "React", "#0A9CC4", "#61DAFB"),
         ("tailwindcss", "Tailwind CSS", "#06B6D4", "#38BDF8"),
         ("vite", "Vite", "#646CFF", "#8B91FF"),
+        ("figma", "Figma", "#F24E1E", "#F24E1E"),
     ]),
-    ("BACK-END", [
+    ("BACKEND & CLOUD", [
         ("nodedotjs", "Node.js", "#5FA04E", "#6CC24A"),
-        ("python", "Python", "#3776AB", "#5A9FD4"),
+        ("docker", "Docker", "#2496ED", "#2496ED"),
+        ("git", "Git", "#F05032", "#F05032"),
+        ("vercel", "Vercel", "#000000", "#FFFFFF"),
     ]),
-    ("DADOS", [
-        ("python", "Python", "#3776AB", "#5A9FD4"),
+    ("DATABASE & TESTING", [
+        ("postgresql", "PostgreSQL", "#4169E1", "#6F8FEF"),
+        ("supabase", "Supabase", "#3ECF8E", "#3ECF8E"),
+        ("vitest", "Vitest", "#6E9F18", "#8CC63F"),
+    ]),
+    ("DATA & BI", [
         ("pandas", "Pandas", "#150458", "#E70488"),
         ("microsoftexcel", "Excel", "#217346", "#33C481"),
         ("powerquery", "Power Query", "#217346", "#33C481"),
         ("powerbi", "Power BI", "#D4A900", "#F2C811"),
         ("jupyter", "Jupyter", "#F37626", "#F37626"),
     ]),
-    ("AUTOMAÇÃO", [
+    ("AUTOMATION", [
         ("n8n", "n8n", "#EA4B71", "#EA4B71"),
+        ("githubactions", "GitHub Actions", "#2088FF", "#2088FF"),
+    ]),
+    ("AI & LLM", [
+        ("openai", "OpenAI", "#000000", "#FFFFFF"),
+        ("claude", "Claude", "#D97757", "#D97757"),
+        ("googlegemini", "Gemini", "#8E75B2", "#A58BD3"),
     ]),
 ]
 # Power Query não tem ícone oficial no Simple Icons: tabela com seta (desenho próprio, 24x24)
@@ -449,34 +471,43 @@ POWERQUERY = "M2 3h14v4H2zm0 6h6v4H2zm8 0h6v4h-6zm-8 6h6v4H2zm8 0h6v4h-6zm9.5-5.
 
 
 def tech():
+    """Card 'Tech Stack': uma categoria por linha, com chips de ícone + nome."""
     icons = json.loads((ROOT / "data" / "icons.json").read_text(encoding="utf-8"))
     icons["powerquery"] = POWERQUERY
     w = 880
-    colw = w / len(TECH)
-    rowh = 40
-    h = int(58 + max(len(items) for _, items in TECH) * rowh + 6)
+    top, rowh, label_w = 70, 46, 190
+    h = top + len(TECH) * rowh + 4
     dark = T is THEMES["dark"]
-    out = []
-    for ci, (title, items) in enumerate(TECH):
-        x = ci * colw + 8
-        hd = "" if STATIC else f' style="animation:rise .6s ease-out {0.1 + ci*0.12:.2f}s both"'
+    hd = "" if STATIC else ' style="animation:rise .7s ease-out .1s both"'
+    out = [
+        f'<g{hd}><text x="8" y="34" class="serif" font-size="30" fill="{T["ink"]}">Tech Stack</text>'
+        f'<text x="872" y="34" class="mono" font-size="13" fill="{T["muted"]}" text-anchor="end">{sum(len(i) for _, i in TECH)} TOOLS</text>'
+        f'<line x1="8" y1="50" x2="872" y2="50" stroke="{T["line"]}"/></g>'
+    ]
+    for ri, (title, items) in enumerate(TECH):
+        y = top + ri * rowh
+        d0 = 0.2 + ri * 0.1
+        anim = "" if STATIC else f' style="animation:rise .5s ease-out {d0:.2f}s both"'
         out.append(
-            f'<g{hd}><text x="{x}" y="22" class="mono" font-size="13" letter-spacing="2" fill="{T["muted"]}">{title}</text>'
-            f'<line x1="{x}" y1="34" x2="{x + colw - 28}" y2="34" stroke="{T["accent"]}" stroke-width="2"/></g>'
+            f'<g{anim}><rect x="8" y="{y+9}" width="3" height="16" rx="1.5" fill="{T["accent"]}"/>'
+            f'<text x="20" y="{y+22}" class="mono" font-size="12.5" letter-spacing="1.5" fill="{T["muted"]}">{esc(title)}</text></g>'
         )
-        for ri, (slug, name, c_light, c_dark) in enumerate(items):
+        x = label_w
+        for ci, (slug, name, c_light, c_dark) in enumerate(items):
             color = c_dark if dark else c_light
-            y = 52 + ri * rowh
-            delay = 0.35 + ci * 0.12 + ri * 0.07
-            anim = "" if STATIC else f' style="animation:rise .5s ease-out {delay:.2f}s both"'
+            cw = 44 + len(name) * 7.9
+            delay = d0 + 0.15 + ci * 0.06
+            anim = "" if STATIC else f' style="animation:pop .45s ease-out {delay:.2f}s both;transform-box:fill-box;transform-origin:center"'
             out.append(
                 f"<g{anim}>"
-                f'<rect x="{x}" y="{y}" width="30" height="30" rx="8" fill="{T["panel"]}" stroke="{T["line"]}"/>'
-                f'<path d="{icons[slug]}" fill="{color}" transform="translate({x+6} {y+6}) scale(.75)"/>'
-                f'<text x="{x+42}" y="{y+20}" class="sans" font-size="15" fill="{T["ink"]}">{esc(name)}</text>'
+                f'<rect x="{x:.1f}" y="{y}" width="{cw:.1f}" height="34" rx="9" fill="{T["panel"]}" stroke="{T["line"]}"/>'
+                f'<path d="{icons[slug]}" fill="{color}" transform="translate({x+10:.1f} {y+8}) scale(.75)"/>'
+                f'<text x="{x+36:.1f}" y="{y+22}" class="sans" font-size="14" fill="{T["ink"]}">{esc(name)}</text>'
                 "</g>"
             )
-    return svg(w, h, "".join(out), "", "Tecnologias: front-end, back-end, dados e automação")
+            x += cw + 8
+    return svg(w, h, "".join(out), "", "Tech Stack — " + "; ".join(
+        f"{t}: " + ", ".join(n for _, n, _, _ in i) for t, i in TECH))
 
 
 def main():
