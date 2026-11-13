@@ -14,6 +14,8 @@ from PIL import Image, ImageEnhance, ImageOps
 
 # do mais "escuro" (mais tinta) ao mais claro
 RAMP = "@%#*+=-:. "  # noqa: E501
+# largura/altura de um caractere como o card desenha (largura 0.6em, altura de linha 1em)
+CHAR_ASPECT = 0.6
 OUT = Path(__file__).resolve().parent.parent / "data" / "portrait.txt"
 
 
@@ -64,7 +66,7 @@ def color_portrait(src, mask, a):
     import json
 
     ramp = " .:-=+*#%@"
-    rows = max(1, round(src.height / src.width * a.cols * 0.5))
+    rows = max(1, round(src.height / src.width * a.cols * CHAR_ASPECT))
     small = src.resize((a.cols, rows), Image.LANCZOS)
     m = mask.resize((a.cols, rows), Image.LANCZOS).load()
     q = small.quantize(colors=a.colors, method=Image.Quantize.MEDIANCUT).convert("RGB").load()
@@ -105,33 +107,39 @@ def bw_image(src, mask, a):
 def mono_portrait(src, mask, a):
     """Preto e branco, sem fundo, com uma versão para cada tema do GitHub (data/portrait_mono.json).
 
-    traços escuros do desenho = caracteres densos; preto no tema claro, branco no escuro
+    Traços escuros do desenho = caracteres densos (preto no tema claro, branco no escuro).
+    Os tons médios entram bem de leve, para dar volume sem parecer fundo.
     """
     import json
+    from PIL import ImageFilter
 
-    ramp = " .:-=+*#%@"
-    rows = max(1, round(src.height / src.width * a.cols * 0.5))
-    small = src.resize((a.cols, rows), Image.LANCZOS)
+    # rampa longa = mais níveis de "tinta" = sombreado mais suave
+    ramp = " .'`,:;-~=+*cxoO0#%@"
+    rows = max(1, round(src.height / src.width * a.cols * CHAR_ASPECT))
+    gray = ImageOps.autocontrast(src.convert("L"), cutoff=1)
+    # engrossa as linhas pretas antes de reduzir: sem isso, traços finos somem na média
+    block = max(1, src.width // a.cols)
+    k = max(3, (block // 2) | 1)
+    gray = gray.filter(ImageFilter.MinFilter(k)).filter(ImageFilter.SHARPEN)
+    small = gray.resize((a.cols, rows), Image.LANCZOS)
     m = mask.resize((a.cols, rows), Image.LANCZOS).load()
-    L = ImageOps.autocontrast(small.convert("L"), cutoff=2).load()
-    V = small.convert("HSV").split()[2].load()
-    # tons claros (pele) ficam vazios; só os traços e áreas escuras viram caracteres
-    ink = lambda l: 0 if 255 - l < 70 else (255 - l - 70) * 255 // 185
-    # traço: quanto mais escuro o pixel do desenho, mais denso o caractere; uma cor só por tema
-    themes = {
-        "light": (lambda x, y: ink(L[x, y]), lambda x, y: "#1F2328"),
-        "dark": (lambda x, y: ink(L[x, y]), lambda x, y: "#F0F6FC"),
-    }
+    L = small.load()
+    t = a.skin  # abaixo deste nível de "tinta" fica vazio (pele, brilhos)
+    ink = lambda l: 0 if 255 - l < t else (255 - l - t) * 255 // (255 - t)
+    # tema claro: caractere preto onde o desenho é escuro (positivo em papel branco)
+    # tema escuro: caractere branco onde o desenho é claro (senão vira um negativo da foto)
+    light = lambda l: 0 if l < 35 else (l - 35) * 255 // 220
+    themes = {"light": ("#1F2328", ink), "dark": ("#F0F6FC", light)}
     out = {"cols": a.cols}
-    for name, (dens, gray) in themes.items():
+    for name, (color, ink) in themes.items():
         lines = []
         for y in range(rows):
             runs = []
             for x in range(a.cols):
                 ch, col = " ", None
                 if m[x, y] >= 128:
-                    ch = ramp[min(len(ramp) - 1, dens(x, y) * len(ramp) // 256)]
-                    col = gray(x, y) if ch != " " else None
+                    ch = ramp[min(len(ramp) - 1, ink(L[x, y]) * len(ramp) // 256)]
+                    col = color if ch != " " else None
                 if runs and runs[-1][1] == col:
                     runs[-1][0] += ch
                 else:
@@ -159,6 +167,8 @@ def main():
     p.add_argument("--size", type=int, default=560, help="tamanho máximo da imagem em px")
     p.add_argument("--mono", action="store_true",
                    help="preto e branco, sem fundo, versões clara e escura (data/portrait_mono.json)")
+    p.add_argument("--skin", type=int, default=40,
+                   help="modo --mono: tons mais claros que isso ficam vazios (0-255; maior = mais limpo)")
     p.add_argument("--colors", type=int, default=10, help="nº de cores no modo --color")
     a = p.parse_args()
 
@@ -184,7 +194,7 @@ def main():
     if a.invert:
         img = ImageOps.invert(img)
     # caracteres monoespaçados são ~2x mais altos que largos
-    rows = max(1, round(img.height / img.width * a.cols * 0.5))
+    rows = max(1, round(img.height / img.width * a.cols * CHAR_ASPECT))
     img = img.resize((a.cols, rows), Image.LANCZOS)
     px = img.load()
     lines = [

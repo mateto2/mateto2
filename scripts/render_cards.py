@@ -219,7 +219,7 @@ def portrait_group(x, y, box_w, box_h, start=0.3):
 
 # ---------- cards ----------
 def hero(s):
-    w, h = 880, 320
+    w, h = 880, 400
     css = """
     .l1{animation:rise .8s ease-out .1s both}.l2{animation:rise .8s ease-out .35s both}
     .l3{animation:rise .8s ease-out .6s both}.l4{animation:fade 1s ease-out 1s both}
@@ -230,10 +230,12 @@ def hero(s):
         f'<rect x="596" y="4" width="276" height="312" rx="14" fill="{T["portrait_box"]}"/>'
         if T["portrait_box"] else ""
     )
-    portrait = portrait_group(612, 12, 244, 296) or ""
+    # retrato ocupa a metade direita, na altura toda do card
+    portrait = portrait_group(430, 4, 446, 392) or ""
     body = (
         f"<defs>{shine_gradient('nm', T['ink'], T['accent'], 5, 1.6)}</defs>"
         + box + portrait
+        + '<g transform="translate(0 40)">'  # centraliza o texto na altura maior
         + f'<text x="8" y="62" class="mono l1" font-size="14" letter-spacing="2" fill="{T["muted"]}">OLÁ, EU SOU</text>'
         + f'<text x="4" y="136" class="serif l2" font-size="76" fill="{T["ink"]}">Matheus</text>'
         + f'<text x="4" y="206" class="serif l2" font-size="76" font-style="italic" fill="url(#nm)">Amaral</text>'
@@ -242,7 +244,7 @@ def hero(s):
         + '<g class="l4">'
         + f'<circle cx="14" cy="302" r="5" fill="{T["accent"]}"/><circle class="dot" cx="14" cy="302" r="5" fill="{T["accent"]}"/>'
         + f'<text x="30" y="307" class="mono" font-size="13" fill="{T["muted"]}">{s["total"]} contribuições no último ano <tspan class="ar">→</tspan></text>'
-        + "</g>"
+        + "</g></g>"
     )
     return svg(w, h, body, css, "Matheus Amaral — Estudante de Ciência da Computação, Web Developer e Automação de IA")
 
